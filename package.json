@@ -1,7 +1,7 @@
 {
   "name": "itinify",
-  "version": "0.0.2",
-  "description": "基于 tinify API 图片压线功能",
+  "version": "0.0.3",
+  "description": "基于 tinify API 图片压缩工具",
   "main": "tinify.js",
   "bin": {
     "tinify": "tinify.js"
