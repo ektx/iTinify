@@ -1,6 +1,6 @@
 {
   "name": "itinify",
-  "version": "0.0.3",
+  "version": "0.1.1",
   "description": "基于 tinify API 图片压缩工具",
   "main": "tinify.js",
   "bin": {
@@ -19,6 +19,10 @@
     "img",
     "图片压缩"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ektx/iTinify.git"
+  },
   "author": {
     "name": "ektx",
     "email": "530675800@qq.com"
