@@ -1,140 +1,176 @@
 #! /usr/bin/env node
 
 /*!
- * tinify
+ * itinify
  * Copyright(c) 2016 ektx
  */
 
+var args = process.argv.splice(2);
 var fs = require('fs');
 var path = require('path');
-var args = process.argv.splice(2);
+var os = require('os');
 var tinify = require('tinify');
 var colors = require('colors');
-var mk = require('imkdirs');
 var rootPath = process.cwd();
+var mk = require('imkdirs');
 
+var options = require('./options');
 
-// tinify key
-// get it from https://tinypng.com/developers
-tinify.key = your_key = "Your_API_Key";
+// user home
+var homedir = os.homedir();
+// 配置文件 
+var optionsPath = path.join(homedir, '.iTinify');
+// 配置内容
+var optionsData = {};
+
+if (args.length > 2 || args.length == 0) {
+	console.log('使用帮助:')
+	console.log("tinify [文件名] [保存文件名(非必填)]")
+	console.log("tinify [文件夹] [保存文件夹(非必填)]")
+	console.log("tinify --key=Your_API_Key 输入KEY ")
+	console.log("tinify --myCount=Your_Numbers 输入数量 ")
+	console.log("tinify --unlink 删除用户配置 ")
+	return;
+}
+
+var commandStr = args[0];
+
+if (/^(--key=)/.test(commandStr)) {
+	options( optionsPath, commandStr.substr(6), 'key' )
+	return;
+} else if ( /^(--myCount)/i.test(commandStr) ) {
+	options( optionsPath, commandStr.substr(10), 'myCount' );
+	return;
+} else if ( /^(--unlink)/.test(commandStr) ) {
+	fs.unlink(optionsPath, function(err) {
+		if (err) throw err;
+		console.log('已经删除配置文件')
+	})
+	return;
+}
+
+// 获取配置文件
+try {
+	optionsData = fs.readFileSync(optionsPath, 'utf8');
+	optionsData = JSON.parse(optionsData);
+} catch(err) {
+	var outStr = '没有找到你的tinify api key 和 myCount\n';
+	outStr += 'tinify --key=Your_API_Key  输入KEY \n'
+	outStr += 'tinify --myCount=Your_Numbers 输入数量 '
+	console.log(outStr);
+	return;
+}
+
 // 单月可以压缩图片总数
-var myCount = 500;
+var myCount = optionsData.myCount || 500;
 
-if (args.length == 0) {
-	console.log("请输入要压缩的图片文件或文件夹!\n")
-	console.log("node img.js [文件名] [保存文件名(非必填)]")
-	console.log("node img.js [文件夹] [保存文件夹(非必填)]")
+if (!optionsData.key) {
+	console.log('tinify --key=Your_API_Key  输入KEY \n获取KEY https://tinypng.com/developers');
 	return;
-}
-
-if (your_key == 'Your_API_Key') {
-	console.log('请确认你的 Tinify API Key');
-	return;
-}
-
-if (args.length > 2){
-	console.log('请确认地址数!')
 } else {
-	var compressionDirectory = toSaveDirctory = absoluteCompressPath = args[0];
+	tinify.key = optionsData.key
+}
 
-	// 绝对路径
-	absoluteCompressPath = getAbsolutePath(compressionDirectory);
 
-	// 对压缩目录进行处理
-	try {
+var compressionDirectory = toSaveDirctory = absoluteCompressPath = args[0];
 
-		// 读取文件类型
-		var _f = fs.statSync(absoluteCompressPath);
+// 绝对路径
+absoluteCompressPath = getAbsolutePath(compressionDirectory);
 
-		// 是文件时
-		if (_f.isFile()) {
+// 对压缩目录进行处理
+try {
 
-			if (args.length === 2) {
-				toSaveDirctory = args[1];
-				// 保存的绝对路径
-				if ( !path.isAbsolute(toSaveDirctory) ) {
-					toSaveDirctory = path.join( path.dirname(absoluteCompressPath), toSaveDirctory)
-				};
+	// 读取文件类型
+	var _f = fs.statSync(absoluteCompressPath);
+
+	// 是文件时
+	if (_f.isFile()) {
+
+		if (args.length === 2) {
+			toSaveDirctory = args[1];
+			// 保存的绝对路径
+			if ( !path.isAbsolute(toSaveDirctory) ) {
+				toSaveDirctory = path.join( path.dirname(absoluteCompressPath), toSaveDirctory)
+			};
+			
+		}
+
+		// 保存文件要是png或是jpg
+		if (!isPNGorJPG(toSaveDirctory)) {
+			console.log('智能保存格式为当前文件相同格式！');
+
+			toSaveDirctory = toSaveDirctory+path.extname(absoluteCompressPath)
+			console.log(toSaveDirctory)
+		}
+
+		validate(1, function() {
+			compressionIMG(absoluteCompressPath, toSaveDirctory);
+		})
+
+	}
+	// 是文件夹时
+	else if (_f.isDirectory()) {
+
+		var files = fs.readdirSync(compressionDirectory);
+		var fileLength = files.length;
+		// 压缩缓存
+		var cache = {};
+
+		// 当有指定压缩目录时
+		if (args.length === 2) {
+			toSaveDirctory = args[1];
+
+			// 获取绝对路径
+			if ( !path.isAbsolute(toSaveDirctory) ) {
+				toSaveDirctory = path.join( path.dirname(absoluteCompressPath), toSaveDirctory)
+			}
+
+			try {
+				fs.statSync(toSaveDirctory);
+			} catch(err) {
+				console.log('为您生成存放压缩图片目录: ' + toSaveDirctory);
+
+				mk(toSaveDirctory);
+			}
+		};
+
+		try {
+			cache = require(path.join(toSaveDirctory,'tinify-cache'));
+		} catch(err) {
+		}			
+
+		// 查询文件列表
+		var getFileList = function() {
+
+			for (var i =0, len = files.length; i < len; i++) {
+				var _compressionIMG = path.join(absoluteCompressPath,files[i]);
+				var _toSaveIMG = path.join(toSaveDirctory, files[i]);
+				var fileInfo = fs.statSync(_compressionIMG);
+
+				
+				if ( files[i] in cache &&  JSON.stringify(cache[files[i]]) == JSON.stringify(fileInfo.mtime) ) {
+					console.log(files[i].yellow);
+				} else {
+
+					if (files[i] !== 'tinify-cache') {
+
+						if ( isPNGorJPG(_compressionIMG) ) {
+							cache[files[i]] = fileInfo.mtime;
+						}
+
+						compressionIMG(_compressionIMG, _toSaveIMG);
+					}
+				}
 				
 			}
 
-			// 保存文件要是png或是jpg
-			if (!isPNGorJPG(toSaveDirctory)) {
-				console.log('智能保存格式为当前文件相同格式！');
-
-				toSaveDirctory = toSaveDirctory+path.extname(absoluteCompressPath)
-				console.log(toSaveDirctory)
-			}
-
-			validate(1, function() {
-				compressionIMG(absoluteCompressPath, toSaveDirctory);
-			})
-
+			createCache(cache);
 		}
-		// 是文件夹时
-		else if (_f.isDirectory()) {
 
-			var files = fs.readdirSync(compressionDirectory);
-			var fileLength = files.length;
-			// 压缩缓存
-			var cache = {};
-
-			// 当有指定压缩目录时
-			if (args.length === 2) {
-				toSaveDirctory = args[1];
-
-				// 获取绝对路径
-				if ( !path.isAbsolute(toSaveDirctory) ) {
-					toSaveDirctory = path.join( path.dirname(absoluteCompressPath), toSaveDirctory)
-				}
-
-				try {
-					fs.statSync(toSaveDirctory);
-				} catch(err) {
-					console.log('为您生成存放压缩图片目录: ' + toSaveDirctory);
-
-					mk(toSaveDirctory);
-				}
-			};
-
-			try {
-				cache = require(path.join(toSaveDirctory,'tinify-cache'));
-			} catch(err) {
-			}			
-
-			// 查询文件列表
-			var getFileList = function() {
-
-				for (var i =0, len = files.length; i < len; i++) {
-					var _compressionIMG = path.join(absoluteCompressPath,files[i]);
-					var _toSaveIMG = path.join(toSaveDirctory, files[i]);
-					var fileInfo = fs.statSync(_compressionIMG);
-
-					
-					if ( files[i] in cache &&  JSON.stringify(cache[files[i]]) == JSON.stringify(fileInfo.mtime) ) {
-						console.log(files[i].yellow);
-					} else {
-
-						if (files[i] !== 'tinify-cache') {
-
-							if ( isPNGorJPG(_compressionIMG) ) {
-								cache[files[i]] = fileInfo.mtime;
-							}
-
-							compressionIMG(_compressionIMG, _toSaveIMG);
-						}
-					}
-					
-				}
-
-				createCache(cache);
-			}
-
-			validate(fileLength, getFileList)
-		}
-	} catch (err) {
-		console.log(err,'没有找到您要压缩的文件夹！')
+		validate(fileLength, getFileList)
 	}
+} catch (err) {
+	console.log(err,'没有找到您要压缩的文件夹！')
 }
 
 
@@ -154,8 +190,6 @@ function validate(size, callback) {
 		console.log('您将要压缩: ' + size + ' 张图片');
 		console.log('本月已经使用了: ' + compressionsThisMonth+' 次');
 		console.log('您本月还可以用: ' +(myCount -  compressionsThisMonth) +'/'+myCount+ ' 次压缩');
-
-		// var compressionsThisMonth = 1100;
 
 		// how many count can use
 		if (compressionsThisMonth + size < myCount) {
@@ -177,7 +211,6 @@ function createCache(data) {
 		console.log('= 非压缩文件'.red+' = 已经压缩文件'.yellow+' = 刚压缩文件'.green)
 	})
 }
-
 
 /*
 	压缩图片
