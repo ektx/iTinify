@@ -1,6 +1,6 @@
 {
   "name": "itinify",
-  "version": "0.0.2",
+  "version": "0.1.2",
   "description": "基于 tinify API 图片压线功能",
   "main": "tinify.js",
   "bin": {
