@@ -12,6 +12,12 @@
 * tinify --myCount=Your_Numbers 输入数量    
 * tinify --unlink 删除用户配置
 
+### .iTinify 配置文件
+
+此文件会在默认设置之后,保存在您的用户根目录下.
+
+
+
 ### 示例
 ```shell
 # 压缩 abc 目录中所有图
@@ -38,7 +44,7 @@ tinify /usr/pic/abc.jpg def.jpg
 # Win 假设 abc.jpg 在 C:\usr\pic\abc.jpg
 tinify "c:\usr\pic\abc.jpg" def
 tinify "c:\usr\pic\abc.jpg" def.jpg
-```    
+```
 
 ### 获取API Key
 

@@ -189,7 +189,7 @@ function validate(size, callback) {
 		compressionsThisMonth = tinify.compressionCount;
 		console.log('您将要压缩: ' + size + ' 张图片');
 		console.log('本月已经使用了: ' + compressionsThisMonth+' 次');
-		console.log('您本月还可以用: ' +(myCount -  compressionsThisMonth) +'/'+myCount+ ' 次压缩');
+		console.log('您本月还可以用: ' +(myCount -  compressionsThisMonth - size) +'/'+myCount+ ' 次压缩');
 
 		// how many count can use
 		if (compressionsThisMonth + size < myCount) {
