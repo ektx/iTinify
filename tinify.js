@@ -29,7 +29,8 @@ if (args.length > 2 || args.length == 0) {
 	console.log("tinify [文件夹] [保存文件夹(非必填)]")
 	console.log("tinify --key=Your_API_Key 输入KEY ")
 	console.log("tinify --myCount=Your_Numbers 输入数量 ")
-	console.log("tinify --unlink 删除用户配置 ")
+	console.log("tinify --unlink 删除用户配置")
+	console.log("tinify --pwd 用户配置文件位置")
 	return;
 }
 
@@ -46,6 +47,10 @@ if (/^(--key=)/.test(commandStr)) {
 		if (err) throw err;
 		console.log('已经删除配置文件')
 	})
+	return;
+} else if (/^(--pwd)/.test(commandStr) ) {
+	console.log('Will show you path...')
+	console.log(optionsPath)
 	return;
 }
 
